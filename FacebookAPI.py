@@ -50,9 +50,11 @@ def get_post_comments(graph, post_id):
     return data
 
 def get_post_shared(graph, post_id):
-    data = [x for x in graph.get_all_connections(id=post_id, connection_name='sharedposts', fields = post_fields)]
-    data = {post_id: data}
-    return data
+    shares = []
+    for sharedpost in graph.get_all_connections(id=post_id, connection_name='sharedposts'):
+        shares.append(sharedpost)
+        shares += get_post_shared(graph, sharedpost['id'])
+    return shares
 
 def get_posts_by_date(graph, date_start, date_end):
     if isinstance(date_start,str):
@@ -61,7 +63,7 @@ def get_posts_by_date(graph, date_start, date_end):
         date_end = datetime.strptime(date_end, r'%Y-%m-%d')
     assert date_end >= date_start, u'date_end must be later than date_start'
     posts = []
-    for post in graph.get_all_connections(id='me', connection_name='posts'):
+    for post in graph.get_all_connections(id='me', connection_name='posts', fields = post_fields):
         date_post = datetime.strptime(post['created_time'][:19], r'%Y-%m-%dT%H:%M:%S')
         if date_post < date_start:
             break
@@ -78,10 +80,10 @@ def get_reactions(graph, posts):
     return reactions
 
 def get_shares(graph, posts):
-    shares = {}
+    shares = []
     for post in posts:
-        shares.update(get_post_shared(graph, post['id']))
-        print('Retrieved shares for {} of {} posts.'.format(len(shares),len(posts)))
+        shares += get_post_shared(graph, post['id'])
+        print('Retrieved {} shares for {} posts.'.format(len(shares),len(posts)))
     return shares
 
 # def get_shares(graph_or_posts, date_start, date_end):
