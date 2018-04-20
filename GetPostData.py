@@ -40,8 +40,18 @@ post_metrics_reach = [
     'post_impressions_viral',
     'post_impressions_nonviral',
     'post_impressions_by_story_type',
+    'post_consumptions',
+    'post_consumptions_by_type',
+    'post_negative_feedback',
+    'post_negative_feedback_by_type',
 ]
 post_metrics_reach += [x+'_unique' for x in post_metrics_reach]
+post_metrics_reach += [
+    'post_engaged_users',
+    'post_engaged_fan',
+    'post_fan_reach',
+    'post_reactions_by_type_total',
+]
 post_metrics_reach = ','.join(post_metrics_reach)
 
 comment_fields = [
@@ -101,9 +111,10 @@ def get_posts_by_date(graph, date_start, date_end, get_reach = False):
         if date_post < date_start:
             break
         elif date_post <= date_end:
-            # if get_reach:
-            #     metrics = list(graph.get_all_connections(id='me', connection_name='posts', fields = post_fields))
-
+            if get_reach:
+                post['insights'] = {}
+                for metric in graph.get_all_connections(id=post['id'], connection_name='insights', metric = post_metrics_reach):
+                    post['insights'][metric['name']] = metric
             posts.append(post)
     return posts
 
@@ -125,7 +136,10 @@ def get_shares(graph, posts):
 def get_comments(graph, posts):
     comments = []
     for count,post in enumerate(posts):
-        comments += get_post_comments(graph, post['id'])
+        this = get_post_comments(graph, post['id'])
+        for comment in this:
+            comment['post_id'] = post['id']
+        comments += this
         print('Retrieved {} comments in {} posts.'.format(len(comments),count+1))
     return comments
 
@@ -166,7 +180,7 @@ if __name__ == '__main__':
             print(help)
         else:
             client = sys.argv[2]
-            graph = facebook.GraphAPI(access_token=credentials.access_token[client], version='2.7')
+            graph = facebook.GraphAPI(access_token=credentials.access_token[client], version='2.12')
             posts = get_posts_by_date(graph, sys.argv[3], sys.argv[4])
             with open(sys.argv[5] + '_posts.json', 'w') as infile:
                 json.dump(posts, infile)
@@ -181,8 +195,8 @@ if __name__ == '__main__':
             print(help)
         else:
             client = sys.argv[2]
-            graph = facebook.GraphAPI(access_token=credentials.access_token[client], version='2.7')
-            posts = get_posts_by_date(graph, sys.argv[3], sys.argv[4])
+            graph = facebook.GraphAPI(access_token=credentials.access_token[client], version='2.12')
+            posts = get_posts_by_date(graph, sys.argv[3], sys.argv[4], get_reach=True)
             print('{} posts found.'.format(len(posts)))
             with open(sys.argv[5] + '_posts.json', 'w') as infile:
                 json.dump(posts, infile)
