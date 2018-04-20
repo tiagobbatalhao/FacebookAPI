@@ -31,6 +31,33 @@ post_fields = [
 ]
 post_fields = ','.join(post_fields)
 
+post_metrics_reach = [
+    'post_impressions',
+    'post_impressions_paid',
+    'post_impressions_fan',
+    'post_impressions_fan_paid',
+    'post_impressions_organic',
+    'post_impressions_viral',
+    'post_impressions_nonviral',
+    'post_impressions_by_story_type',
+]
+post_metrics_reach += [x+'_unique' for x in post_metrics_reach]
+post_metrics_reach = ','.join(post_metrics_reach)
+
+comment_fields = [
+    'id',
+    'comment_count',
+    'created_time',
+    'from',
+    'like_count',
+    'message',
+    'message_tags',
+    'object',
+    'parent',
+]
+comment_fields = ','.join(comment_fields)
+
+
 def get_posts(graph, limit = 200):
     posts = []
     for post in graph.get_all_connections(id='me', connection_name='posts', fields = post_fields):
@@ -45,9 +72,15 @@ def get_post_reactions(graph, post_id):
     return data
 
 def get_post_comments(graph, post_id):
-    data = [x for x in graph.get_all_connections(id=post_id, connection_name='comments')]
-    data = {post_id: data}
-    return data
+    comments = []
+    for comment in graph.get_all_connections(id=post_id, connection_name='comments', fields = comment_fields):
+        if 'parent' not in comment:
+            comment['parent_id'] = post_id
+        else:
+            comment['parent_id'] = comment['parent']['id']
+        comments.append(comment)
+        comments += get_post_comments(graph, comment['id'])
+    return comments
 
 def get_post_shared(graph, post_id):
     shares = []
@@ -56,7 +89,7 @@ def get_post_shared(graph, post_id):
         shares += get_post_shared(graph, sharedpost['id'])
     return shares
 
-def get_posts_by_date(graph, date_start, date_end):
+def get_posts_by_date(graph, date_start, date_end, get_reach = False):
     if isinstance(date_start,str):
         date_start = datetime.strptime(date_start, r'%Y-%m-%d')
     if isinstance(date_end,str):
@@ -68,6 +101,9 @@ def get_posts_by_date(graph, date_start, date_end):
         if date_post < date_start:
             break
         elif date_post <= date_end:
+            # if get_reach:
+            #     metrics = list(graph.get_all_connections(id='me', connection_name='posts', fields = post_fields))
+
             posts.append(post)
     return posts
 
@@ -85,6 +121,14 @@ def get_shares(graph, posts):
         shares += get_post_shared(graph, post['id'])
         print('Retrieved {} shares for {} posts.'.format(len(shares),len(posts)))
     return shares
+
+def get_comments(graph, posts):
+    comments = []
+    for count,post in enumerate(posts):
+        comments += get_post_comments(graph, post['id'])
+        print('Retrieved {} comments in {} posts.'.format(len(comments),count+1))
+    return comments
+
 
 # def get_shares(graph_or_posts, date_start, date_end):
 #     if isinstance(graph_or_posts,list):
@@ -142,9 +186,9 @@ if __name__ == '__main__':
             print('{} posts found.'.format(len(posts)))
             with open(sys.argv[5] + '_posts.json', 'w') as infile:
                 json.dump(posts, infile)
-            shares = get_shares(graph, posts)
-            with open(sys.argv[5] + '_shares.json', 'w') as infile:
-                json.dump(shares, infile)
-            reactions = get_reactions(graph, posts)
+            comments = get_comments(graph, posts)
+            with open(sys.argv[5] + '_comments.json', 'w') as infile:
+                json.dump(comments, infile)
+            reactions = get_reactions(graph, posts + comments)
             with open(sys.argv[5] + '_reactions.json', 'w') as infile:
                 json.dump(reactions, infile)
