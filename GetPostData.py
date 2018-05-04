@@ -1,6 +1,7 @@
 import credentials
 import time
 from datetime import datetime
+from datetime import timedelta
 import json
 import facebook
 import sys
@@ -103,7 +104,7 @@ def get_posts_by_date(graph, date_start, date_end, get_reach = False):
     if isinstance(date_start,str):
         date_start = datetime.strptime(date_start, r'%Y-%m-%d')
     if isinstance(date_end,str):
-        date_end = datetime.strptime(date_end, r'%Y-%m-%d')
+        date_end = datetime.strptime(date_end, r'%Y-%m-%d') + timedelta(days=1)
     assert date_end >= date_start, u'date_end must be later than date_start'
     posts = []
     for post in graph.get_all_connections(id='me', connection_name='posts', fields = post_fields):
